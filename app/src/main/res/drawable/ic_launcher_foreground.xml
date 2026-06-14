@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Logo OptiPlay: triangulo de "play" con degradado de marca azul->verde + anillo. -->
+
+    <!-- Anillo exterior (azul de marca) -->
+    <path
+        android:strokeColor="#22A7F0"
+        android:strokeWidth="3.2"
+        android:fillColor="#00000000"
+        android:pathData="M54,30 m-23,0 a23,23 0 1,0 46,0 a23,23 0 1,0 -46,0"
+        android:strokeAlpha="0.55" />
+
+    <!-- Triangulo de reproduccion con degradado azul -> verde -->
+    <path android:pathData="M47,41 L47,67 L70,54 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="47" android:startY="41"
+                android:endX="70" android:endY="67"
+                android:startColor="#22A7F0"
+                android:endColor="#3DDC84" />
+        </aapt:attr>
+    </path>
+
+    <!-- Acento de onda (verde) a la izquierda -->
+    <path
+        android:strokeColor="#3DDC84"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M37,48 L37,60" />
+</vector>

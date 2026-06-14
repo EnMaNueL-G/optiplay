@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OptiPlay</string>
+    <string name="tab_songs">Canciones</string>
+    <string name="tab_albums">Álbumes</string>
+    <string name="tab_folders">Carpetas</string>
+    <string name="tab_settings">Ajustes</string>
+    <string name="perm_title">Permiso necesario</string>
+    <string name="perm_body">OptiPlay necesita acceso a tu música para reproducirla. Tus datos nunca salen del dispositivo.</string>
+    <string name="perm_grant">Conceder acceso</string>
+    <string name="no_songs">No se encontró música. Concede el permiso o agrega archivos.</string>
+    <string name="now_playing">Reproduciendo</string>
+    <string name="notif_channel_name">Reproducción</string>
+</resources>
