@@ -14,8 +14,8 @@ android {
         applicationId = "com.optisuite.optiplay"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -71,6 +71,11 @@ android {
     }
 }
 
+ksp {
+    // Esquema de Room versionado: cada cambio necesita una Migration (nunca borrar datos del usuario).
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.05.00")
     implementation(composeBom)
@@ -103,6 +108,7 @@ dependencies {
 
     // Image loading (Compose-native)
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil-video:2.6.0") // miniaturas de vídeo (fotograma local)
 
     // Preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")

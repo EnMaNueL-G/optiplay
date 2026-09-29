@@ -12,6 +12,10 @@ import java.io.File
  * Lee la biblioteca de audio del dispositivo vía MediaStore.
  * Sin red, sin telemetría: todo es local.
  */
+/** MediaStore devuelve "<unknown>" cuando el archivo no tiene la etiqueta. */
+private fun String?.orUnknown(fallback: String): String =
+    if (isNullOrBlank() || this == MediaStore.UNKNOWN_STRING) fallback else this
+
 class MediaRepository(private val context: Context) {
 
     private val albumArtBase: Uri = Uri.parse("content://media/external/audio/albumart")
@@ -30,7 +34,8 @@ class MediaRepository(private val context: Context) {
             MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.TRACK,
             MediaStore.Audio.Media.YEAR,
-            MediaStore.Audio.Media.MIME_TYPE
+            MediaStore.Audio.Media.MIME_TYPE,
+            MediaStore.Audio.Media.DATE_ADDED
         )
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND " +
             "${MediaStore.Audio.Media.DURATION} > 5000"
@@ -47,6 +52,7 @@ class MediaRepository(private val context: Context) {
             val trackCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
             val yearCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR)
             val mimeCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
+            val addedCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
 
             while (c.moveToNext()) {
                 val id = c.getLong(idCol)
@@ -57,8 +63,8 @@ class MediaRepository(private val context: Context) {
                     Song(
                         id = id,
                         title = c.getString(titleCol) ?: "Desconocido",
-                        artist = c.getString(artistCol) ?: "Artista desconocido",
-                        album = c.getString(albumCol) ?: "Álbum desconocido",
+                        artist = c.getString(artistCol).orUnknown("Artista desconocido"),
+                        album = c.getString(albumCol).orUnknown("Álbum desconocido"),
                         albumId = albumId,
                         durationMs = c.getLong(durCol),
                         data = data,
@@ -67,7 +73,8 @@ class MediaRepository(private val context: Context) {
                         folder = folder,
                         track = c.getInt(trackCol),
                         year = c.getInt(yearCol),
-                        mimeType = c.getString(mimeCol) ?: ""
+                        mimeType = c.getString(mimeCol) ?: "",
+                        dateAdded = c.getLong(addedCol)
                     )
                 )
             }

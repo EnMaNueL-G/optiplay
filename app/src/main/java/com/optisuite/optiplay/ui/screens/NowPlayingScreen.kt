@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -65,14 +66,14 @@ fun NowPlayingScreen(vm: PlayerViewModel, onCollapse: () -> Unit, onOpenQueue: (
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            Modifier.fillMaxSize().padding(24.dp),
+            Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 24.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onCollapse) { Icon(Icons.Filled.KeyboardArrowDown, "Minimizar") }
                 Text("Reproduciendo", Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.titleSmall)
                 val isFav = favorites.contains(s.id)
-                IconButton(onClick = { vm.toggleFavorite(s.id) }) {
+                IconButton(onClick = { vm.toggleFavorite(s.id) }, enabled = s.id >= 0) {
                     Icon(if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, "Favorito",
                         tint = if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -132,7 +133,7 @@ fun NowPlayingScreen(vm: PlayerViewModel, onCollapse: () -> Unit, onOpenQueue: (
                 TextButton(onClick = onOpenQueue) {
                     Icon(Icons.AutoMirrored.Filled.QueueMusic, null, Modifier.size(18.dp)); Text(" Cola")
                 }
-                TextButton(onClick = { vm.requestAddToPlaylist(s.id) }) {
+                TextButton(onClick = { vm.requestAddToPlaylist(s.id) }, enabled = s.id >= 0) {
                     Icon(Icons.Filled.PlaylistAdd, null, Modifier.size(18.dp)); Text(" Lista")
                 }
             }

@@ -80,7 +80,8 @@ fun SongsScreen(vm: PlayerViewModel, contentPadding: PaddingValues) {
                                     com.optisuite.optiplay.ui.SongSort.TITLE to "Título",
                                     com.optisuite.optiplay.ui.SongSort.ARTIST to "Artista",
                                     com.optisuite.optiplay.ui.SongSort.ALBUM to "Álbum",
-                                    com.optisuite.optiplay.ui.SongSort.DURATION to "Duración"
+                                    com.optisuite.optiplay.ui.SongSort.DURATION to "Duración",
+                                    com.optisuite.optiplay.ui.SongSort.RECENT to "Añadidas recientemente"
                                 )
                                 opts.forEach { (s, label) ->
                                     DropdownMenuItem(text = { Text(label) }, onClick = { vm.setSort(s); sortMenu = false })

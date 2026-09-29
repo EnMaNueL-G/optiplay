@@ -16,7 +16,8 @@ data class Song(
     val folder: String,        // carpeta contenedora (para vista Carpetas)
     val track: Int,
     val year: Int,
-    val mimeType: String
+    val mimeType: String,
+    val dateAdded: Long = 0L   // segundos (MediaStore.DATE_ADDED)
 )
 
 /** Agrupación por álbum para la vista Álbumes. */

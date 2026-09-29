@@ -52,7 +52,7 @@ fun EqualizerScreen(vm: PlayerViewModel, contentPadding: PaddingValues) {
             Column(Modifier.weight(1f)) {
                 Text("Ecualizador", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    if (fx.available) "Afecta a toda la salida de audio" else "No disponible en este dispositivo",
+                    if (fx.available) "Se aplica a la música y los vídeos de OptiPlay · ${fx.centerFreqs.size} bandas (las que ofrece tu móvil)" else "No disponible en este dispositivo",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -86,7 +86,7 @@ fun EqualizerScreen(vm: PlayerViewModel, contentPadding: PaddingValues) {
         ) {
             bands.forEachIndexed { i, level ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp)) {
-                    Text("${(max / 100).toInt()}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text((level / 100).let { if (it > 0) "+$it dB" else "$it dB" }, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     VerticalSlider(
                         value = level.toFloat(),
                         onValueChange = { fx.setBand(i, it.toInt().toShort()) },

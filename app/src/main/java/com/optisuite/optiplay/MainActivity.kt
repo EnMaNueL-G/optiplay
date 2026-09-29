@@ -1,6 +1,9 @@
 package com.optisuite.optiplay
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -39,6 +42,19 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.lifecycle.Lifecycle
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -67,7 +83,7 @@ import com.optisuite.optiplay.ui.screens.SettingsScreen
 import com.optisuite.optiplay.ui.screens.SongsScreen
 import com.optisuite.optiplay.ui.screens.VideosScreen
 import com.optisuite.optiplay.ui.theme.OptiPlayTheme
-import org.koin.androidx.compose.koinViewModel
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 private enum class Tab(val label: String, val icon: ImageVector) {
     HOME("Inicio", Icons.Filled.Home),
@@ -90,6 +106,42 @@ private sealed interface Detail {
     data class Playlist(val id: Long, val name: String) : Detail
 }
 
+/** Serializa la pila de navegación para que sobreviva a girar la pantalla. */
+private fun Detail.encode(): String = when (this) {
+    Detail.Favorites -> "fav"
+    Detail.Recents -> "rec"
+    Detail.MostPlayed -> "top"
+    Detail.Albums -> "albums"
+    Detail.Artists -> "artists"
+    Detail.Folders -> "folders"
+    Detail.Queue -> "queue"
+    is Detail.Album -> "album\u0000$id\u0000$name"
+    is Detail.Artist -> "artist\u0000$name"
+    is Detail.Playlist -> "pl\u0000$id\u0000$name"
+}
+
+private fun decodeDetail(s: String): Detail? {
+    val p = s.split('\u0000')
+    return when (p[0]) {
+        "fav" -> Detail.Favorites
+        "rec" -> Detail.Recents
+        "top" -> Detail.MostPlayed
+        "albums" -> Detail.Albums
+        "artists" -> Detail.Artists
+        "folders" -> Detail.Folders
+        "queue" -> Detail.Queue
+        "album" -> p.getOrNull(1)?.toLongOrNull()?.let { Detail.Album(it, p.getOrElse(2) { "" }) }
+        "artist" -> Detail.Artist(p.getOrElse(1) { "" })
+        "pl" -> p.getOrNull(1)?.toLongOrNull()?.let { Detail.Playlist(it, p.getOrElse(2) { "" }) }
+        else -> null
+    }
+}
+
+private val StackSaver = Saver<SnapshotStateList<Detail>, ArrayList<String>>(
+    save = { ArrayList(it.map { d -> d.encode() }) },
+    restore = { it.mapNotNull(::decodeDetail).toMutableStateList() }
+)
+
 private fun requiredPermissions(): Array<String> = buildList {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         add(Manifest.permission.READ_MEDIA_AUDIO)
@@ -101,22 +153,42 @@ private fun requiredPermissions(): Array<String> = buildList {
 }.toTypedArray()
 
 class MainActivity : ComponentActivity() {
+    private val vm: PlayerViewModel by viewModel()
+
+    /** Se pone a true cuando se abre un audio desde otra app, para mostrar "Reproduciendo". */
+    private val openNowPlaying = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null) handleViewIntent(intent)
         setContent {
-            val vm: PlayerViewModel = koinViewModel()
+            val vm = vm
             val theme by vm.themeMode.collectAsStateWithLifecycle()
             val dynamic by vm.dynamicColor.collectAsStateWithLifecycle()
             OptiPlayTheme(themeMode = theme, dynamicColor = dynamic) {
-                AppRoot(vm)
+                AppRoot(vm, openNowPlaying)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleViewIntent(intent)
+    }
+
+    /** "Abrir con… OptiPlay" desde el gestor de archivos, WhatsApp, Telegram, etc. */
+    private fun handleViewIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+        vm.playExternalAudio(uri)
+        openNowPlaying.value = true
     }
 }
 
 @Composable
-private fun AppRoot(vm: PlayerViewModel) {
+private fun AppRoot(vm: PlayerViewModel, openNowPlaying: androidx.compose.runtime.MutableState<Boolean>) {
     val ctx = LocalContext.current
 
     fun hasAudioPermission(): Boolean {
@@ -138,15 +210,27 @@ private fun AppRoot(vm: PlayerViewModel) {
         if (granted) vm.load() else launcher.launch(requiredPermissions())
     }
 
-    var tab by remember { mutableStateOf(Tab.HOME) }
-    var showNowPlaying by remember { mutableStateOf(false) }
-    val stack = remember { mutableStateListOf<Detail>() }
+    // Si el usuario concede el permiso desde Ajustes del sistema, detectarlo al volver.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME && !granted && hasAudioPermission()) { granted = true; vm.load() }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    var showNowPlaying by rememberSaveable { mutableStateOf(false) }
+    val stack = rememberSaveable(saver = StackSaver) { mutableStateListOf<Detail>() }
+    if (openNowPlaying.value) { showNowPlaying = true; openNowPlaying.value = false }
     val current by vm.currentSong.collectAsStateWithLifecycle()
     val isPlaying by vm.player.isPlaying.collectAsStateWithLifecycle()
     val positionMs by vm.positionMs.collectAsStateWithLifecycle()
     val durationMs by vm.player.durationMs.collectAsStateWithLifecycle()
     val pendingAdd by vm.pendingAddSong.collectAsStateWithLifecycle()
     val sleepLeft by vm.sleepMinutesLeft.collectAsStateWithLifecycle()
+    val sleepState by vm.sleepState.collectAsStateWithLifecycle()
 
     fun push(d: Detail) { stack.add(d) }
     fun pop() { if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) }
@@ -155,10 +239,11 @@ private fun AppRoot(vm: PlayerViewModel) {
         Scaffold(
             bottomBar = {
                 Column {
-                    if (sleepLeft > 0) {
+                    if (sleepState.active) {
                         Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth().clickable { vm.cancelSleepTimer() }) {
                             Text(
-                                "⏱ Apagado en $sleepLeft min — toca para cancelar",
+                                if (sleepState.endOfTrack) "⏱ Pausa al terminar la canción — toca para cancelar"
+                                else "⏱ Pausa en $sleepLeft min — toca para cancelar",
                                 Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -191,8 +276,22 @@ private fun AppRoot(vm: PlayerViewModel) {
             }
         ) { padding ->
             if (!granted) {
-                Box(Modifier.fillMaxSize().padding(padding)) {
-                    Text("Concede acceso a tu música para empezar.", Modifier.padding(24.dp).align(Alignment.Center))
+                Column(
+                    Modifier.fillMaxSize().padding(padding).padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("OptiPlay necesita permiso para leer tu música y tus vídeos. Nada sale del móvil.")
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { launcher.launch(requiredPermissions()) }) { Text("Conceder acceso") }
+                    OutlinedButton(onClick = {
+                        runCatching {
+                            ctx.startActivity(
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", ctx.packageName, null))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    }) { Text("Abrir ajustes del sistema") }
                 }
             } else when (tab) {
                 Tab.HOME -> HomeScreen(

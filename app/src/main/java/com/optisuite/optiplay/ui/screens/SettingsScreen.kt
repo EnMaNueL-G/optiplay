@@ -7,6 +7,8 @@ import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,6 +49,7 @@ private fun copy(ctx: Context, label: String, value: String) {
     Toast.makeText(ctx, "$label copiado", Toast.LENGTH_SHORT).show()
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(vm: PlayerViewModel, contentPadding: PaddingValues) {
     val ctx = LocalContext.current
@@ -85,25 +88,45 @@ fun SettingsScreen(vm: PlayerViewModel, contentPadding: PaddingValues) {
         Spacer(Modifier.height(16.dp)); Divider(); Spacer(Modifier.height(16.dp))
 
         val sleepLeft by vm.sleepMinutesLeft.collectAsStateWithLifecycle()
+        val sleepState by vm.sleepState.collectAsStateWithLifecycle()
         Text("Temporizador de apagado", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
-        if (sleepLeft > 0) {
-            Text("Activo: se pausará en $sleepLeft min", style = MaterialTheme.typography.bodyMedium)
+        if (sleepState.active) {
+            Text(
+                if (sleepState.endOfTrack) "Activo: se pausará al terminar la canción"
+                else "Activo: se pausará en $sleepLeft min (con fundido)",
+                style = MaterialTheme.typography.bodyMedium
+            )
             TextButton(onClick = { vm.cancelSleepTimer() }) { Text("Cancelar temporizador") }
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(15, 30, 45, 60).forEach { m ->
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(15, 30, 45, 60, 90).forEach { m ->
                     AssistChip(onClick = { vm.startSleepTimer(m) }, label = { Text("$m min") })
                 }
+                AssistChip(onClick = { vm.sleepAtEndOfTrack() }, label = { Text("Al terminar la canción") })
             }
+            Text("Sigue funcionando aunque cierres la app.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        Spacer(Modifier.height(16.dp)); Divider(); Spacer(Modifier.height(16.dp))
+
+        val videos by vm.videos.collectAsStateWithLifecycle()
+        val loading by vm.loading.collectAsStateWithLifecycle()
+        Text("Biblioteca", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Text(
+            "${songs.size} canciones · ${videos.size} vídeos. Se actualiza sola al añadir o borrar archivos.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+        TextButton(onClick = { vm.load(force = true) }, enabled = !loading) {
+            Text(if (loading) "Buscando…" else "Volver a buscar música y vídeos")
         }
 
         Spacer(Modifier.height(16.dp)); Divider(); Spacer(Modifier.height(16.dp))
 
         Text("Privacidad", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
-        Text("• Sin permiso de Internet.\n• Sin anuncios ni telemetría.\n• Tus datos nunca salen del dispositivo.", style = MaterialTheme.typography.bodyMedium)
-        Text("Biblioteca: ${songs.size} pistas locales.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+        Text("• Sin permiso de Internet.\n• Sin anuncios ni telemetría.\n• Sin copia en la nube: tus listas, favoritos e historial no salen del móvil.", style = MaterialTheme.typography.bodyMedium)
 
         Spacer(Modifier.height(16.dp)); Divider(); Spacer(Modifier.height(16.dp))
 
@@ -123,7 +146,7 @@ fun SettingsScreen(vm: PlayerViewModel, contentPadding: PaddingValues) {
         Spacer(Modifier.height(8.dp))
         DonationRow(ctx, "Binance Pay ID", "1165745950")
         Spacer(Modifier.height(8.dp))
-        DonationRow(ctx, "BSC (BEP20)", "0xb6f6731a4ea87f8e1fd6f44f48b5bc4204571f08")
+        DonationRow(ctx, "USDT (BSC · BEP-20)","0xb6f6731a4ea87f8e1fd6f44f48b5bc4204571f08")
     }
 }
 

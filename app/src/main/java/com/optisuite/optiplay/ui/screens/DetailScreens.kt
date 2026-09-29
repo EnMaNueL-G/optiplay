@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
@@ -41,7 +43,7 @@ fun DetailScaffold(title: String, onBack: () -> Unit, content: @Composable (Padd
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
             Row(
-                Modifier.fillMaxWidth().padding(top = 36.dp, start = 4.dp, end = 16.dp, bottom = 4.dp),
+                Modifier.fillMaxWidth().statusBarsPadding().padding(top = 4.dp, start = 4.dp, end = 16.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Atrás") }
@@ -66,7 +68,7 @@ private fun SongList(vm: PlayerViewModel, songs: List<Song>, padding: PaddingVal
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PlayPill("Reproducir", Icons.Filled.PlayArrow) { vm.playFrom(songs, songs.first()) }
                 PlayPill("Aleatorio", Icons.Filled.Shuffle) {
-                    if (!vm.player.shuffle.value) vm.player.toggleShuffle(); vm.playFrom(songs, songs.random())
+                    vm.player.setShuffle(true); vm.playFrom(songs, songs.random())
                 }
             }
         }
@@ -166,7 +168,7 @@ fun PlaylistDetailScreen(vm: PlayerViewModel, playlistId: Long, name: String, on
             items(songs, key = { it.id }) { s ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f)) {
-                        SongRow(s, isCurrent = current?.id == s.id) { vm.playFrom(songs, s) }
+                        SongRow(s, isCurrent = current?.id == s.id, onLongClick = { vm.requestAddToPlaylist(s.id) }) { vm.playFrom(songs, s) }
                     }
                     IconButton(onClick = { vm.removeFromPlaylist(playlistId, s.id) }) {
                         Icon(Icons.Filled.Delete, "Quitar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -179,15 +181,37 @@ fun PlaylistDetailScreen(vm: PlayerViewModel, playlistId: Long, name: String, on
 
 @Composable
 fun QueueScreen(vm: PlayerViewModel, onBack: () -> Unit) {
-    val currentId by vm.player.currentMediaId.collectAsStateWithLifecycle()
+    val version by vm.player.queueVersion.collectAsStateWithLifecycle()
     val byIdSongs by vm.songs.collectAsStateWithLifecycle()
     val map = remember(byIdSongs) { byIdSongs.associateBy { it.id.toString() } }
-    val queueIds = remember(currentId) { vm.player.queueMediaIds() }
-    DetailScaffold("Cola de reproducción", onBack) { p ->
+    val queueIds = remember(version) { vm.player.queueMediaIds() }
+    val titles = remember(version) { vm.player.queueTitles() }
+    val currentIndex = remember(version) { vm.player.currentIndex() }
+    DetailScaffold("Cola de reproducción (${queueIds.size})", onBack) { p ->
+        if (queueIds.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("La cola está vacía.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            return@DetailScaffold
+        }
         LazyColumn(contentPadding = p, modifier = Modifier.fillMaxSize()) {
             itemsIndexed(queueIds) { index, mid ->
                 val s = map[mid]
-                if (s != null) SongRow(s, isCurrent = mid == currentId) { vm.player.seekToItem(index) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) {
+                        if (s != null) SongRow(s, isCurrent = index == currentIndex) { vm.player.seekToItem(index) }
+                        else Text(
+                            titles.getOrNull(index)?.ifBlank { null } ?: "Pista externa",
+                            Modifier.fillMaxWidth().clickable { vm.player.seekToItem(index) }.padding(16.dp),
+                            color = if (index == currentIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    if (index != currentIndex) {
+                        IconButton(onClick = { vm.player.removeFromQueue(index) }) {
+                            Icon(Icons.Filled.Close, "Quitar de la cola", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
             }
         }
     }

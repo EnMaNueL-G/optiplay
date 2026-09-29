@@ -36,3 +36,12 @@ data class HistoryEntity(
     val lastPlayedAt: Long,
     val playCount: Int
 )
+
+/** Dónde se quedó cada vídeo (para "continuar viendo"). */
+@Entity(tableName = "video_progress")
+data class VideoProgressEntity(
+    @PrimaryKey val uri: String,
+    val positionMs: Long,
+    val durationMs: Long,
+    val updatedAt: Long = System.currentTimeMillis()
+)

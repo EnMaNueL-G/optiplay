@@ -4,15 +4,14 @@ import android.content.Context
 import android.media.AudioManager
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
-import android.media.audiofx.PresetReverb
 import android.media.audiofx.Virtualizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Motor de efectos de audio sobre la sesión de salida GLOBAL (session 0),
- * de modo que afecta a toda la reproducción del reproductor sin acoplarse al ExoPlayer.
- * Ecualizador de 10 bandas (las que exponga el dispositivo) + BassBoost + Virtualizer + Reverb.
+ * Efectos de audio sobre una sesión de audio PROPIA de OptiPlay (la sesión global 0 no funciona en
+ * Samsung). El reproductor de música y el de vídeo se unen a esta sesión, así que solo afecta a OptiPlay.
+ * Ecualizador con las bandas que exponga el dispositivo (normalmente 5) + BassBoost + Virtualizer.
  * Persiste en SharedPreferences. Robusto: si el equipo no soporta un efecto, se ignora sin romper.
  */
 class AudioEffects(context: Context) {
@@ -27,7 +26,6 @@ class AudioEffects(context: Context) {
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
-    private var reverb: PresetReverb? = null
 
     private val _enabled = MutableStateFlow(prefs.getBoolean("enabled", false))
     val enabled: StateFlow<Boolean> = _enabled
@@ -69,7 +67,6 @@ class AudioEffects(context: Context) {
         }
         bassBoost = runCatching { BassBoost(1000, sid) }.getOrNull()
         virtualizer = runCatching { Virtualizer(1000, sid) }.getOrNull()
-        reverb = runCatching { PresetReverb(1000, sid) }.getOrNull()
         available = true
 
         // Restaurar bandas guardadas
@@ -85,7 +82,6 @@ class AudioEffects(context: Context) {
         equalizer?.enabled = on
         bassBoost?.enabled = on && _bass.value > 0
         virtualizer?.enabled = on && _virtual.value > 0
-        reverb?.enabled = on && _preset.value < 0 // reverb solo si no hay preset de EQ activo (simplificación)
         if (on) {
             _bands.value.forEachIndexed { i, level ->
                 runCatching { equalizer?.setBandLevel(i.toShort(), level) }
@@ -139,7 +135,7 @@ class AudioEffects(context: Context) {
     }
 
     fun release() {
-        equalizer?.release(); bassBoost?.release(); virtualizer?.release(); reverb?.release()
-        equalizer = null; bassBoost = null; virtualizer = null; reverb = null
+        equalizer?.release(); bassBoost?.release(); virtualizer?.release()
+        equalizer = null; bassBoost = null; virtualizer = null
     }
 }

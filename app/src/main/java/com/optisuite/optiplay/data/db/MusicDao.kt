@@ -47,8 +47,9 @@ interface MusicDao {
     @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM playlist_songs WHERE playlistId = :playlistId")
     suspend fun nextPosition(playlistId: Long): Int
 
+    /** Devuelve -1 si la canción ya estaba en la lista. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertPlaylistSong(item: PlaylistSongEntity)
+    suspend fun insertPlaylistSong(item: PlaylistSongEntity): Long
 
     @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun removeFromPlaylist(playlistId: Long, songId: Long)
@@ -56,10 +57,10 @@ interface MusicDao {
     @Query("SELECT COUNT(*) FROM playlist_songs WHERE playlistId = :playlistId")
     fun playlistCount(playlistId: Long): Flow<Int>
 
+    /** true si se añadió; false si ya estaba. */
     @Transaction
-    suspend fun addSongToPlaylist(playlistId: Long, songId: Long) {
-        insertPlaylistSong(PlaylistSongEntity(playlistId = playlistId, songId = songId, position = nextPosition(playlistId)))
-    }
+    suspend fun addSongToPlaylist(playlistId: Long, songId: Long): Boolean =
+        insertPlaylistSong(PlaylistSongEntity(playlistId = playlistId, songId = songId, position = nextPosition(playlistId))) != -1L
 
     @Transaction
     suspend fun deletePlaylistFully(playlistId: Long) {
@@ -91,4 +92,17 @@ interface MusicDao {
             )
         )
     }
+
+    // ---- Progreso de vídeos ----
+    @Query("SELECT * FROM video_progress WHERE uri = :uri")
+    suspend fun videoProgress(uri: String): VideoProgressEntity?
+
+    @Query("SELECT * FROM video_progress")
+    fun allVideoProgress(): Flow<List<VideoProgressEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveVideoProgress(p: VideoProgressEntity)
+
+    @Query("DELETE FROM video_progress WHERE uri = :uri")
+    suspend fun clearVideoProgress(uri: String)
 }
